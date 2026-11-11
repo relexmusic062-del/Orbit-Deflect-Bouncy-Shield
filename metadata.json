@@ -1,0 +1,6 @@
+{
+  "name": "Orbit Deflect: Bouncy Shield",
+  "description": "A 360-degree physics ricochet arcade game (Ghoomti Dhaal) where you stand serene at the center and orbit a bouncy shield to deflect enemy bullets back at attackers like billiards and carrom.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
