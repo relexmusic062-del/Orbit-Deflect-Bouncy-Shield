@@ -8,103 +8,99 @@ export type GameMode = 'level' | 'infinity';
 export interface SkinItem<T extends string> {
   id: T;
   name: string;
-  subtitle: string;
   price: number;
   primaryColor: string;
   accentColor: string;
+  safetyDegrees?: number; // For shields: 90, 120, 180, 220, 270, 360
 }
 
 export const CHARACTER_SKINS: SkinItem<CharacterSkinId>[] = [
   {
     id: 'agent',
     name: 'Secret Agent',
-    subtitle: 'Black Suit & Shades',
     price: 0,
     primaryColor: '#1E293B',
-    accentColor: '#F8FAFC',
+    accentColor: '#38BDF8',
   },
   {
     id: 'monk',
-    name: 'Zen Monk',
-    subtitle: 'Lotus Meditation',
-    price: 120,
+    name: 'Shadow Ninja',
+    price: 2000,
     primaryColor: '#F59E0B',
     accentColor: '#FEF3C7',
   },
   {
     id: 'wizard',
     name: 'Arcane Wizard',
-    subtitle: 'Floating Levitation',
-    price: 200,
+    price: 5000,
     primaryColor: '#8B5CF6',
     accentColor: '#DDD6FE',
   },
   {
     id: 'astronaut',
-    name: 'Star Astronaut',
-    subtitle: 'Gold Visor Suit',
-    price: 280,
+    name: 'Star Commander',
+    price: 10000,
     primaryColor: '#E2E8F0',
     accentColor: '#FBBF24',
   },
   {
     id: 'dj',
-    name: 'Turntable DJ',
-    subtitle: 'Live Mixing Deck',
-    price: 350,
+    name: 'Cyber DJ',
+    price: 18000,
     primaryColor: '#EC4899',
     accentColor: '#38BDF8',
   },
 ];
 
+// Significantly higher prices across all shields as protection angle increases
 export const SHIELD_SKINS: SkinItem<ShieldSkinId>[] = [
   {
     id: 'iron',
     name: 'Iron Shield',
-    subtitle: 'Classic Metal Dhaal',
     price: 0,
     primaryColor: '#94A3B8',
     accentColor: '#F8FAFC',
+    safetyDegrees: 90,
   },
   {
     id: 'pan',
     name: 'Cast Iron Pan',
-    subtitle: 'Iconic "TING!" Sound',
-    price: 150,
+    price: 2500,
     primaryColor: '#334155',
     accentColor: '#F59E0B',
+    safetyDegrees: 120,
   },
   {
     id: 'lightsaber',
-    name: 'Laser Sword',
-    subtitle: 'Glowing Neon Blade',
-    price: 220,
+    name: 'Plasma Blade',
+    price: 6000,
     primaryColor: '#10B981',
     accentColor: '#ECFDF5',
+    safetyDegrees: 180,
   },
   {
     id: 'rune',
     name: 'Magical Rune Wall',
-    subtitle: 'Transparent Arcane Barrier',
-    price: 260,
+    price: 12000,
     primaryColor: '#38BDF8',
     accentColor: '#BAE6FD',
+    safetyDegrees: 220,
   },
   {
     id: 'vinyl',
-    name: 'Vinyl Record',
-    subtitle: 'Spinning Music Disc',
-    price: 300,
+    name: 'Sonic Vinyl Shield',
+    price: 22000,
     primaryColor: '#1E293B',
     accentColor: '#F43F5E',
+    safetyDegrees: 270,
   },
   {
     id: 'donut',
     name: 'Giant Donut',
-    subtitle: 'Pops Sprinkles on Hit',
-    price: 340,
+    price: 35000,
     primaryColor: '#F472B6',
     accentColor: '#FDE047',
+    safetyDegrees: 360,
   },
 ];
 
@@ -112,7 +108,6 @@ export const PROJECTILE_SKINS: SkinItem<ProjectileSkinId>[] = [
   {
     id: 'bullet',
     name: 'Sniper Bullets',
-    subtitle: 'High-Speed Brass',
     price: 0,
     primaryColor: '#F59E0B',
     accentColor: '#FEF3C7',
@@ -120,32 +115,28 @@ export const PROJECTILE_SKINS: SkinItem<ProjectileSkinId>[] = [
   {
     id: 'arrow',
     name: 'Flaming Arrows',
-    subtitle: 'Blazing Fire Burst',
-    price: 140,
+    price: 1800,
     primaryColor: '#EA580C',
     accentColor: '#FDE047',
   },
   {
     id: 'shuriken',
     name: 'Ninja Shurikens',
-    subtitle: 'Spinning Steel Stars',
-    price: 180,
+    price: 4500,
     primaryColor: '#38BDF8',
     accentColor: '#F1F5F9',
   },
   {
     id: 'laser',
     name: 'Laser Beams',
-    subtitle: 'Sci-Fi Plasma Bolts',
-    price: 240,
+    price: 9000,
     primaryColor: '#A855F7',
     accentColor: '#F3E8FF',
   },
   {
     id: 'tomato',
     name: 'Rotten Tomatoes',
-    subtitle: 'Juicy Red Splat',
-    price: 290,
+    price: 15000,
     primaryColor: '#EF4444',
     accentColor: '#22C55E',
   },
@@ -154,37 +145,39 @@ export const PROJECTILE_SKINS: SkinItem<ProjectileSkinId>[] = [
 export const TRAIL_SKINS: SkinItem<TrailSkinId>[] = [
   {
     id: 'silver',
-    name: 'Silver Ribbon',
-    subtitle: 'Clean Motion Trail',
+    name: 'Silver Wind',
     price: 0,
     primaryColor: '#94A3B8',
     accentColor: '#E2E8F0',
   },
   {
     id: 'red',
-    name: 'Crimson Neon',
-    subtitle: 'Blazing Red Rope',
-    price: 100,
+    name: 'Crimson Flare',
+    price: 1500,
     primaryColor: '#F43F5E',
     accentColor: '#FDA4AF',
   },
   {
     id: 'blue',
-    name: 'Cyber Cobalt',
-    subtitle: 'Electric Blue Rope',
-    price: 150,
+    name: 'Ocean Surge',
+    price: 4000,
     primaryColor: '#38BDF8',
     accentColor: '#BAE6FD',
   },
   {
     id: 'rainbow',
     name: 'Rainbow Prism',
-    subtitle: 'Full Spectrum Ribbon',
-    price: 320,
+    price: 10000,
     primaryColor: '#F59E0B',
     accentColor: '#EC4899',
   },
 ];
+
+export function getShieldSafetyRadians(shieldId: ShieldSkinId): number {
+  const found = SHIELD_SKINS.find((s) => s.id === shieldId);
+  const deg = found?.safetyDegrees ?? 90;
+  return (deg * Math.PI) / 180;
+}
 
 export interface PlayerLoadout {
   character: CharacterSkinId;
@@ -195,6 +188,7 @@ export interface PlayerLoadout {
 
 export interface UnlockedStoreState {
   coins: number;
+  bestScore: number;
   highestUnlockedLevel: number; // 1 to 100
   unlockedCharacters: CharacterSkinId[];
   unlockedShields: ShieldSkinId[];
@@ -203,10 +197,11 @@ export interface UnlockedStoreState {
   loadout: PlayerLoadout;
 }
 
-const STORAGE_KEY = 'orbit_deflect_profile_v2';
+const STORAGE_KEY = 'orbit_deflect_profile_v5';
 
 export const DEFAULT_PROFILE: UnlockedStoreState = {
-  coins: 250, // Starter coins so players can immediately try the Shop
+  coins: 60,
+  bestScore: 0,
   highestUnlockedLevel: 1,
   unlockedCharacters: ['agent'],
   unlockedShields: ['iron'],
@@ -248,7 +243,7 @@ export function savePlayerProfile(profile: UnlockedStoreState): void {
   }
 }
 
-export type InfinityGiftType = 'dual_shield' | 'extra_life' | 'triple_weapon';
+export type InfinityGiftType = 'dual_shield' | 'extra_life' | 'triple_weapon' | 'full_aegis';
 
 export interface InfinityGiftDrop {
   id: number;

@@ -31,31 +31,34 @@ export default function App() {
   const [gamePhase, setGamePhase] = useState<GamePhase>(getInitialPhase);
   const [gameMode, setGameMode] = useState<GameMode>('level');
   const [profile, setProfile] = useState<UnlockedStoreState>(() => loadPlayerProfile());
-  const [selectedLevel, setSelectedLevel] = useState<number>(() =>
-    loadPlayerProfile().highestUnlockedLevel
-  );
   const [selectedStance, setSelectedStance] = useState<ShieldStanceId>('brass');
   const [isShopOpen, setIsShopOpen] = useState<boolean>(false);
   const [runNonce, setRunNonce] = useState<number>(1);
 
-  const [hud, setHud] = useState<HudSnapshot>(() => ({
-    gameMode: 'level',
-    hp: 5,
-    maxHp: 5,
-    crackedSocketIndex: -1,
-    score: 0,
-    bestScore: Number(localStorage.getItem('orbit_deflect_best') || '0') || 0,
-    coins: loadPlayerProfile().coins,
-    combo: 1,
-    level: 1,
-    enemiesRemaining: 4,
-    deflections: 0,
-    pulseCooldown: 0,
-    dualShieldTimer: 0,
-    tripleWeaponTimer: 0,
-    stance: 'brass',
-    muted: false,
-  }));
+  const [hud, setHud] = useState<HudSnapshot>(() => {
+    const p = loadPlayerProfile();
+    return {
+      gameMode: 'level',
+      hp: 5,
+      maxHp: 5,
+      crackedSocketIndex: -1,
+      score: 0,
+      bestScore: p.bestScore,
+      coins: p.coins,
+      combo: 1,
+      level: p.highestUnlockedLevel,
+      enemiesDefeated: 0,
+      totalEnemiesInLevel: 4,
+      enemiesRemaining: 4,
+      deflections: 0,
+      pulseCooldown: 0,
+      dualShieldTimer: 0,
+      tripleWeaponTimer: 0,
+      fullAegisTimer: 0,
+      stance: 'brass',
+      muted: false,
+    };
+  });
 
   const [runSummary, setRunSummary] = useState<RunSummarySnapshot>({
     outcome: 'defeat',
@@ -93,6 +96,16 @@ export default function App() {
     [updateProfile]
   );
 
+  const handleUpdateBestScore = useCallback(
+    (newBest: number) => {
+      updateProfile((prev) => ({
+        ...prev,
+        bestScore: Math.max(prev.bestScore, newBest),
+      }));
+    },
+    [updateProfile]
+  );
+
   const handleLevelComplete = useCallback(
     (completedLevel: number) => {
       const nextUnlock = Math.min(100, completedLevel + 1);
@@ -119,13 +132,11 @@ export default function App() {
   }, []);
 
   const handleNextLevel = useCallback(() => {
-    const nextLvl = Math.min(100, selectedLevel + 1);
-    setSelectedLevel(nextLvl);
     setIsShopOpen(false);
     document.body.dataset.state = 'playing';
     setRunNonce((n) => n + 1);
     setGamePhase('playing');
-  }, [selectedLevel]);
+  }, []);
 
   const handleTogglePause = useCallback(() => {
     setGamePhase((prev) => {
@@ -135,7 +146,7 @@ export default function App() {
           outcome: 'defeat',
           gameMode,
           score: hud.score,
-          bestScore: hud.bestScore,
+          bestScore: profile.bestScore,
           levelReached: hud.level,
           coinsEarned: 0,
           deflections: hud.deflections,
@@ -149,7 +160,7 @@ export default function App() {
       }
       return prev;
     });
-  }, [gameMode, hud.bestScore, hud.deflections, hud.level, hud.score]);
+  }, [gameMode, hud.deflections, hud.level, hud.score, profile.bestScore]);
 
   const handleGameOver = useCallback((summary: RunSummarySnapshot) => {
     document.body.dataset.state = 'gameover';
@@ -297,13 +308,15 @@ export default function App() {
       <ArenaCanvas
         gamePhase={gamePhase}
         gameMode={gameMode}
-        selectedLevel={selectedLevel}
+        selectedLevel={profile.highestUnlockedLevel}
         selectedStance={selectedStance}
         loadout={profile.loadout}
         totalCoins={profile.coins}
+        bestScore={profile.bestScore}
         runNonce={runNonce}
         onHudUpdate={setHud}
         onAddCoins={handleAddCoins}
+        onUpdateBestScore={handleUpdateBestScore}
         onLevelComplete={handleLevelComplete}
         onGameOver={handleGameOver}
         onTogglePause={handleTogglePause}
@@ -313,12 +326,14 @@ export default function App() {
       {gamePhase === 'title' && !isShopOpen && (
         <TitleOverlay
           gameMode={gameMode}
-          selectedLevel={selectedLevel}
           highestUnlockedLevel={profile.highestUnlockedLevel}
+          equippedCharacter={profile.loadout.character}
+          equippedShield={profile.loadout.shield}
           coins={profile.coins}
-          bestScore={hud.bestScore}
+          bestScore={profile.bestScore}
+          muted={hud.muted}
+          onToggleMute={handleToggleMute}
           onSelectMode={setGameMode}
-          onSelectLevel={setSelectedLevel}
           onOpenShop={() => setIsShopOpen(true)}
           onStartGame={startNewRun}
         />

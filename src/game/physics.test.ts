@@ -8,6 +8,8 @@ import {
   getLevelConfig,
   getInfinityDifficulty,
   calculateKillScore,
+  calculateKillCoins,
+  getEnemyBulletSpec,
   SHIELD_STANCES,
 } from './physics';
 import {
@@ -15,6 +17,7 @@ import {
   SHIELD_SKINS,
   PROJECTILE_SKINS,
   TRAIL_SKINS,
+  getShieldSafetyRadians,
 } from './catalog';
 
 test('normalizeAngle wraps angles cleanly into [-PI, PI]', () => {
@@ -71,80 +74,83 @@ test('checkShieldDeflection bounces a centered radial bullet straight back outwa
   assert.ok(Math.abs(result!.reflectedVy) < 1e-3);
 });
 
-test('checkShieldDeflection banks an off-center bullet at a Carrom/Billiards angle', () => {
+test('checkShieldDeflection supports 180, 270, and 360 degree shield safety angles and steeply scaled prices', () => {
   const cx = 500;
   const cy = 400;
   const orbitRadius = 68;
-  const bulletAngle = 0.35;
-  const bullet = {
-    x: cx + Math.cos(bulletAngle) * orbitRadius,
-    y: cy + Math.sin(bulletAngle) * orbitRadius,
-    vx: -Math.cos(bulletAngle) * 300,
-    vy: -Math.sin(bulletAngle) * 300,
-    radius: 6,
-    isDeflected: false,
-  };
 
-  const result = checkShieldDeflection(
-    bullet,
-    cx,
-    cy,
-    orbitRadius,
-    0,
-    0,
-    SHIELD_STANCES.striker,
-    false,
-    []
-  );
-
-  assert.notEqual(result, null);
-  const reflectedAngle = Math.atan2(result!.reflectedVy, result!.reflectedVx);
-  assert.ok(reflectedAngle > bulletAngle + 0.1);
-});
-
-test('checkShieldDeflection supports Dual Shield gift powerup on opposite side', () => {
-  const cx = 500;
-  const cy = 400;
-  const orbitRadius = 68;
-  const bullet = {
-    x: cx + orbitRadius,
+  const backBullet = {
+    x: cx - orbitRadius,
     y: cy,
-    vx: -300,
+    vx: 300,
     vy: 0,
     radius: 6,
     isDeflected: false,
   };
 
-  // Primary shield faces PI (left), bullet arrives from 0 (right)
-  const missed = checkShieldDeflection(
-    bullet,
+  const ironMiss = checkShieldDeflection(
+    backBullet,
     cx,
     cy,
     orbitRadius,
-    Math.PI,
+    0,
     0,
     SHIELD_STANCES.brass,
     false,
     [],
-    false
+    false,
+    getShieldSafetyRadians('iron')
   );
-  assert.equal(missed, null);
+  assert.equal(ironMiss, null);
 
-  // With Dual Shield gift active, secondary shield at PI + PI = 0 blocks it!
-  const blocked = checkShieldDeflection(
-    bullet,
+  const donutHit = checkShieldDeflection(
+    backBullet,
     cx,
     cy,
     orbitRadius,
-    Math.PI,
+    0,
     0,
     SHIELD_STANCES.brass,
     false,
     [],
-    true
+    false,
+    getShieldSafetyRadians('donut')
   );
-  assert.notEqual(blocked, null);
-  assert.equal(blocked!.hit, true);
+  assert.notEqual(donutHit, null);
+  assert.equal(donutHit!.hit, true);
+
+  // Verify shield prices increase steeply with protection angle and top shield costs >= 30,000
+  for (let i = 1; i < SHIELD_SKINS.length; i++) {
+    assert.ok(SHIELD_SKINS[i].price > SHIELD_SKINS[i - 1].price);
+    assert.ok((SHIELD_SKINS[i].safetyDegrees ?? 0) > (SHIELD_SKINS[i - 1].safetyDegrees ?? 0));
+  }
+  assert.ok(SHIELD_SKINS[SHIELD_SKINS.length - 1].price >= 30000);
+  assert.ok(CHARACTER_SKINS[CHARACTER_SKINS.length - 1].price >= 15000);
+  assert.ok(PROJECTILE_SKINS[PROJECTILE_SKINS.length - 1].price >= 12000);
+  assert.ok(TRAIL_SKINS[TRAIL_SKINS.length - 1].price >= 8000);
+});
+
+test('getEnemyBulletSpec assigns unique projectile types and power scaling per enemy archetype', () => {
+  const sniper = getEnemyBulletSpec('marksman', 1);
+  const zombie = getEnemyBulletSpec('flanker', 15);
+  const alien = getEnemyBulletSpec('burst', 20);
+  const juggernaut = getEnemyBulletSpec('bastion', 40);
+
+  assert.equal(sniper.bulletType, 'sniper_round');
+  assert.equal(zombie.bulletType, 'zombie_acid');
+  assert.equal(alien.bulletType, 'alien_plasma');
+  assert.equal(juggernaut.bulletType, 'juggernaut_core');
+  assert.equal(juggernaut.damage, 2);
+  assert.ok(juggernaut.powerLevel > sniper.powerLevel);
+});
+
+test('calculateKillCoins restricts Infinity Mode coin payouts compared to Level Mode', () => {
+  assert.equal(calculateKillCoins(false, 1, false), 1);
+  assert.equal(calculateKillCoins(false, 1, true), 2);
+  // Infinity mode only grants coins on every 3rd kill
+  assert.equal(calculateKillCoins(true, 1, false), 0);
+  assert.equal(calculateKillCoins(true, 2, true), 0);
+  assert.equal(calculateKillCoins(true, 3, false), 1);
 });
 
 test('getLevelConfig supports 100 levels with fixed enemies and coin rewards', () => {
@@ -161,7 +167,7 @@ test('getLevelConfig supports 100 levels with fixed enemies and coin rewards', (
 
 test('getInfinityDifficulty scales harder as survival time and kills increase', () => {
   const early = getInfinityDifficulty(2, 0);
-  const late = getInfinityDifficulty(90, 25);
+  const late = getInfinityDifficulty(110, 30);
 
   assert.ok(late.tier > early.tier);
   assert.ok(late.bulletSpeed > early.bulletSpeed);

@@ -6,9 +6,9 @@ export interface ShieldStanceConfig {
   name: string;
   hindiSubtitle: string;
   roleClue: string;
-  arcSpan: number; // total angular width in radians
+  arcSpan: number; // default fallback arc in radians
   speedMultiplier: number;
-  bankCurvature: number; // how strongly hitting off-center angles the reflection normal
+  bankCurvature: number;
   pierceCount: number;
   splitBullets: boolean;
   wallBounces: number;
@@ -22,10 +22,10 @@ export const SHIELD_STANCES: Record<ShieldStanceId, ShieldStanceConfig> = {
     keyBinding: '1',
     name: 'Balanced',
     hindiSubtitle: 'Wide Arc',
-    roleClue: 'Wide 62° Arc',
-    arcSpan: 1.08,
-    speedMultiplier: 1.32,
-    bankCurvature: 0.75,
+    roleClue: 'Wide Arc',
+    arcSpan: Math.PI * 0.5, // 90 deg default
+    speedMultiplier: 1.35,
+    bankCurvature: 0.72,
     pierceCount: 1,
     splitBullets: false,
     wallBounces: 0,
@@ -38,9 +38,9 @@ export const SHIELD_STANCES: Record<ShieldStanceId, ShieldStanceConfig> = {
     name: 'Striker',
     hindiSubtitle: 'Fast Bounce',
     roleClue: 'Pierce & Wall Bounce',
-    arcSpan: 0.84,
+    arcSpan: Math.PI * 0.5,
     speedMultiplier: 1.68,
-    bankCurvature: 1.15,
+    bankCurvature: 1.1,
     pierceCount: 2,
     splitBullets: false,
     wallBounces: 2,
@@ -53,8 +53,8 @@ export const SHIELD_STANCES: Record<ShieldStanceId, ShieldStanceConfig> = {
     name: 'Split Shot',
     hindiSubtitle: 'Twin Bolt',
     roleClue: 'Splits Bullet in 2',
-    arcSpan: 0.96,
-    speedMultiplier: 1.25,
+    arcSpan: Math.PI * 0.5,
+    speedMultiplier: 1.28,
     bankCurvature: 0.85,
     pierceCount: 1,
     splitBullets: true,
@@ -69,6 +69,71 @@ export interface Vec2 {
   y: number;
 }
 
+export type EnemyArchetype = 'marksman' | 'flanker' | 'burst' | 'bastion';
+export type EnemyBulletType = 'sniper_round' | 'zombie_acid' | 'alien_plasma' | 'juggernaut_core';
+
+export interface EnemyBulletSpec {
+  bulletType: EnemyBulletType;
+  powerLevel: number; // 1, 2, or 3+
+  damage: number;
+  speedMultiplier: number;
+  radius: number;
+  color: string;
+  coreColor: string;
+}
+
+export function getEnemyBulletSpec(archetype: EnemyArchetype, levelTier: number): EnemyBulletSpec {
+  const powerLevel = levelTier >= 35 ? 3 : levelTier >= 12 ? 2 : 1;
+  const tierSpeedBoost = 1 + Math.min(0.35, (levelTier - 1) * 0.005);
+
+  if (archetype === 'flanker') {
+    // Zombie Mutant: Toxic Acid Skull / Bio-Glob
+    return {
+      bulletType: 'zombie_acid',
+      powerLevel,
+      damage: powerLevel >= 3 ? 2 : 1,
+      speedMultiplier: 1.06 * tierSpeedBoost,
+      radius: 7 + (powerLevel - 1) * 1.2,
+      color: '#22C55E',
+      coreColor: '#BEF264',
+    };
+  }
+  if (archetype === 'burst') {
+    // Alien Invader: Twin Plasma Ring Bolt
+    return {
+      bulletType: 'alien_plasma',
+      powerLevel,
+      damage: 1,
+      speedMultiplier: 1.02 * tierSpeedBoost,
+      radius: 6.8 + (powerLevel - 1) * 1.0,
+      color: '#A855F7',
+      coreColor: '#38BDF8',
+    };
+  }
+  if (archetype === 'bastion') {
+    // Cyber-Juggernaut Boss: Heavy Magma Core Cannonball (High Power!)
+    return {
+      bulletType: 'juggernaut_core',
+      powerLevel: Math.max(2, powerLevel),
+      damage: 2,
+      speedMultiplier: 0.9 * tierSpeedBoost,
+      radius: 9.5 + (powerLevel - 1) * 1.5,
+      color: '#EF4444',
+      coreColor: '#FDE047',
+    };
+  }
+  // Human Sniper Mercenary: High-Velocity Brass Calibre Round
+  return {
+    bulletType: 'sniper_round',
+    powerLevel,
+    damage: 1,
+    speedMultiplier: 1.0 * tierSpeedBoost,
+    radius: 6.5 + (powerLevel - 1) * 0.8,
+    color: '#F59E0B',
+    coreColor: '#FFFBEB',
+  };
+}
+
 export interface BulletState {
   id: number;
   x: number;
@@ -81,17 +146,21 @@ export interface BulletState {
   pierceRemaining: number;
   wallBouncesRemaining: number;
   sourceEnemyId: number;
+  sourceArchetype?: EnemyArchetype;
+  bulletType?: EnemyBulletType;
+  powerLevel?: number;
+  damage?: number;
   isPowerDeflect: boolean;
   color: string;
+  coreColor?: string;
   spinAngle: number;
   trail: Vec2[];
 }
 
-export type EnemyArchetype = 'marksman' | 'flanker' | 'burst' | 'bastion';
-
 export interface EnemyState {
   id: number;
   archetype: EnemyArchetype;
+  levelTier?: number;
   x: number;
   y: number;
   vx: number;
@@ -112,9 +181,6 @@ export interface EnemyState {
   koVy: number;
 }
 
-/**
- * Normalizes any angle in radians to the range [-PI, PI].
- */
 export function normalizeAngle(angle: number): number {
   let a = angle % (Math.PI * 2);
   if (a > Math.PI) a -= Math.PI * 2;
@@ -122,16 +188,10 @@ export function normalizeAngle(angle: number): number {
   return a;
 }
 
-/**
- * Shortest signed angular difference from `from` to `to` in [-PI, PI].
- */
 export function shortestAngleDiff(from: number, to: number): number {
   return normalizeAngle(to - from);
 }
 
-/**
- * Smoothly interpolates an angle toward a target angle with a maximum step.
- */
 export function stepAngleTowards(current: number, target: number, maxStep: number): number {
   const diff = shortestAngleDiff(current, target);
   if (Math.abs(diff) <= maxStep) {
@@ -162,7 +222,8 @@ export function checkShieldDeflection(
   stance: ShieldStanceConfig,
   pulseActive: boolean,
   enemies: Pick<EnemyState, 'id' | 'x' | 'y' | 'radius' | 'phase'>[] = [],
-  hasDualShield: boolean = false
+  hasDualShield: boolean = false,
+  overrideArcSpanRadians?: number
 ): ShieldInterceptResult | null {
   if (bullet.isDeflected) return null;
 
@@ -170,7 +231,7 @@ export function checkShieldDeflection(
   const dy = bullet.y - cy;
   const dist = Math.hypot(dx, dy);
 
-  const shieldThickness = pulseActive ? 24 : 15;
+  const shieldThickness = pulseActive ? 24 : 16;
   const minR = orbitRadius - shieldThickness * 0.55 - bullet.radius;
   const maxR = orbitRadius + shieldThickness * 0.65 + bullet.radius;
 
@@ -178,19 +239,20 @@ export function checkShieldDeflection(
     return null;
   }
 
-  // Ensure bullet is moving generally inward toward the shield/center
   const radialDot = dx * bullet.vx + dy * bullet.vy;
   if (radialDot > 20) {
     return null;
   }
 
   const bulletAngle = Math.atan2(dy, dx);
-  const halfArc = (stance.arcSpan * (pulseActive ? 1.35 : 1.0)) / 2;
+  const baseArc = overrideArcSpanRadians ?? stance.arcSpan;
+  const effectiveArc = Math.min(Math.PI * 2, baseArc * (pulseActive ? 1.25 : 1.0));
+  const halfArc = effectiveArc / 2;
   const angularRadiusPadding = Math.atan2(bullet.radius + 4, orbitRadius);
 
-  // Check primary shield at `shieldAngle` or secondary gift shield at `shieldAngle + PI`
+  // Full 360-degree shield (e.g. Giant Donut or 360 Aegis) intercepts from any angle!
   let angleOffset = shortestAngleDiff(shieldAngle, bulletAngle);
-  if (Math.abs(angleOffset) > halfArc + angularRadiusPadding) {
+  if (effectiveArc < Math.PI * 1.98 && Math.abs(angleOffset) > halfArc + angularRadiusPadding) {
     if (hasDualShield) {
       const secondaryAngle = normalizeAngle(shieldAngle + Math.PI);
       const secOffset = shortestAngleDiff(secondaryAngle, bulletAngle);
@@ -204,11 +266,14 @@ export function checkShieldDeflection(
     }
   }
 
-  const clampedOffset = Math.max(-1, Math.min(1, angleOffset / Math.max(0.01, halfArc)));
+  const clampedOffset =
+    effectiveArc >= Math.PI * 1.98
+      ? 0
+      : Math.max(-1, Math.min(1, angleOffset / Math.max(0.01, halfArc)));
 
   const normalAngle = normalizeAngle(
     bulletAngle +
-      clampedOffset * stance.bankCurvature * 0.62 +
+      clampedOffset * stance.bankCurvature * 0.55 +
       Math.max(-0.18, Math.min(0.18, shieldAngularVel * 0.015))
   );
 
@@ -239,7 +304,7 @@ export function checkShieldDeflection(
   const impactY = cy + Math.sin(bulletAngle) * (orbitRadius + bullet.radius + 2);
 
   let bestEnemyAngle: number | null = null;
-  let bestAngularError = 0.34;
+  let bestAngularError = 0.36;
 
   for (const enemy of enemies) {
     if (enemy.phase === 'ko') continue;
@@ -252,7 +317,7 @@ export function checkShieldDeflection(
   }
 
   if (bestEnemyAngle !== null) {
-    const assistStrength = stance.id === 'brass' ? 0.70 : 0.56;
+    const assistStrength = 0.72;
     outAngle = normalizeAngle(outAngle + shortestAngleDiff(outAngle, bestEnemyAngle) * assistStrength);
   }
 
@@ -273,7 +338,7 @@ export function checkShieldDeflection(
 }
 
 export interface LevelConfig {
-  level: number; // 1 to 100
+  level: number;
   totalEnemiesInLevel: number;
   maxConcurrentEnemies: number;
   maxConcurrentAttackers: number;
@@ -284,9 +349,6 @@ export interface LevelConfig {
   allowedArchetypes: EnemyArchetype[];
 }
 
-/**
- * Generates deterministic difficulty & fixed enemy count for Level Mode (Levels 1 to 100).
- */
 export function getLevelConfig(level: number): LevelConfig {
   const clampedLevel = Math.max(1, Math.min(100, Math.floor(level)));
 
@@ -296,10 +358,10 @@ export function getLevelConfig(level: number): LevelConfig {
       totalEnemiesInLevel: 4,
       maxConcurrentEnemies: 2,
       maxConcurrentAttackers: 1,
-      bulletSpeed: 280,
+      bulletSpeed: 270,
       aimTelegraphDuration: 0.95,
       staggerDelayBetweenShots: 0.85,
-      coinReward: 45,
+      coinReward: 19,
       allowedArchetypes: ['marksman'],
     };
   }
@@ -307,10 +369,11 @@ export function getLevelConfig(level: number): LevelConfig {
   const totalEnemies = Math.min(28, 4 + Math.floor(clampedLevel * 1.35));
   const maxConcurrent = Math.min(6, 2 + Math.floor(clampedLevel / 2));
   const maxAttackers = Math.min(4, 1 + Math.floor(clampedLevel / 2));
-  const bulletSpeed = Math.min(480, 285 + clampedLevel * 4.5);
-  const aimTelegraph = Math.max(0.46, 0.90 - clampedLevel * 0.008);
+  const bulletSpeed = Math.min(480, 275 + clampedLevel * 4.2);
+  const aimTelegraph = Math.max(0.46, 0.9 - clampedLevel * 0.008);
   const staggerDelay = Math.max(0.22, 0.72 - clampedLevel * 0.01);
-  const coinReward = 40 + clampedLevel * 12;
+  // Balanced so reaching Level 55-70 accumulates ~4,200-6,500 coins for the 270° and 360° shields
+  const coinReward = 18 + Math.floor(clampedLevel * 1.4);
 
   const archetypes: EnemyArchetype[] = ['marksman'];
   if (clampedLevel >= 2) archetypes.push('flanker');
@@ -330,9 +393,6 @@ export function getLevelConfig(level: number): LevelConfig {
   };
 }
 
-/**
- * Backwards-compatible alias for getLevelConfig.
- */
 export function getWaveDifficulty(level: number) {
   const cfg = getLevelConfig(level);
   return {
@@ -347,11 +407,8 @@ export function getWaveDifficulty(level: number) {
   };
 }
 
-/**
- * Dynamic difficulty scaling for Infinity Mode based on elapsed survival time and kills.
- */
 export function getInfinityDifficulty(elapsedSeconds: number, enemiesDefeated: number) {
-  const virtualTier = 1 + Math.floor(elapsedSeconds / 15) + Math.floor(enemiesDefeated / 5);
+  const virtualTier = 1 + Math.floor(elapsedSeconds / 18) + Math.floor(enemiesDefeated / 6);
   const cfg = getLevelConfig(Math.min(100, virtualTier));
   return {
     tier: virtualTier,
@@ -381,4 +438,21 @@ export function calculateKillScore(
   const bankBonus = isBankShot ? 1.5 : 1.0;
   const powerBonus = isPowerDeflect ? 1.25 : 1.0;
   return Math.round(base * comboMult * bankBonus * powerBonus);
+}
+
+// Calculates modest coin rewards per kill so Infinity Mode does not flood the economy
+export function calculateKillCoins(
+  isInfinity: boolean,
+  totalDefeatedInRun: number,
+  isBankShot: boolean
+): number {
+  if (isInfinity) {
+    // In Infinity Mode, only award 1 coin every 3rd kill (+1 extra on a bank shot every 3rd kill)
+    if (totalDefeatedInRun % 3 === 0) {
+      return isBankShot ? 2 : 1;
+    }
+    return 0;
+  }
+  // In Level Mode, award 1 coin per kill (2 on bank shot)
+  return isBankShot ? 2 : 1;
 }
